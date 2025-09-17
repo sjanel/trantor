@@ -99,6 +99,7 @@ int Socket::accept(InetAddress *peeraddr)
     }
     return connfd;
 }
+
 void Socket::closeWrite()
 {
 #ifndef _WIN32
@@ -107,9 +108,22 @@ void Socket::closeWrite()
     if (::shutdown(sockFd_, SD_SEND) < 0)
 #endif
     {
-        LOG_SYSERR << "sockets::shutdownWrite";
+#ifndef _WIN32
+        // ENOTCONN is common if the peer already closed or
+        // reset the connection before we attempt a half-close; it is a benign
+        // race during normal teardown, so we can downgrade its severity.
+        if (errno == ENOTCONN)
+        {
+            LOG_DEBUG << "shutdownWrite on non-connected fd=" << sockFd_;
+        }
+        else
+#endif
+        {
+            LOG_SYSERR << "sockets::shutdownWrite fd=" << sockFd_;
+        }
     }
 }
+
 int Socket::read(char *buffer, uint64_t len)
 {
 #ifndef _WIN32
@@ -121,8 +135,7 @@ int Socket::read(char *buffer, uint64_t len)
 
 struct sockaddr_in6 Socket::getLocalAddr(int sockfd)
 {
-    struct sockaddr_in6 localaddr;
-    memset(&localaddr, 0, sizeof(localaddr));
+    struct sockaddr_in6 localaddr{};
     socklen_t addrlen = static_cast<socklen_t>(sizeof localaddr);
     if (::getsockname(sockfd,
                       static_cast<struct sockaddr *>((void *)(&localaddr)),
@@ -135,8 +148,7 @@ struct sockaddr_in6 Socket::getLocalAddr(int sockfd)
 
 struct sockaddr_in6 Socket::getPeerAddr(int sockfd)
 {
-    struct sockaddr_in6 peeraddr;
-    memset(&peeraddr, 0, sizeof(peeraddr));
+    struct sockaddr_in6 peeraddr{};
     socklen_t addrlen = static_cast<socklen_t>(sizeof peeraddr);
     if (::getpeername(sockfd,
                       static_cast<struct sockaddr *>((void *)(&peeraddr)),

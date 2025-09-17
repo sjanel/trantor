@@ -25,7 +25,7 @@
 
 namespace trantor
 {
-class Socket : NonCopyable
+class Socket
 {
   public:
     static int createNonblockingSocketOrDie(int family)
@@ -85,7 +85,14 @@ class Socket : NonCopyable
     explicit Socket(int sockfd) : sockFd_(sockfd)
     {
     }
+
+    Socket(const Socket &) = delete;
+    Socket &operator=(const Socket &) = delete;
+    Socket(Socket &&) noexcept = delete;
+    Socket &operator=(Socket &&) noexcept = delete;
+
     ~Socket();
+
     /// abort if address in use
     void bindAddress(const InetAddress &localaddr);
     /// abort if address in use
